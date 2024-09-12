@@ -18,9 +18,10 @@ def parse_args():
     names_weights_available = list_weights_available()
 
     parser = argparse.ArgumentParser(description="Export model.")
-    parser.add_argument("--width", type=int, help="Width of input image", default=518)
-    parser.add_argument("--height", type=int, help="Height of input image", default=518)
+    parser.add_argument("--width", help="Width of input image", type=int, default=518)
+    parser.add_argument("--height", help="Height of input image", type=int, default=518)
     parser.add_argument("--name_weights", help="Name of the saved weights", choices=names_weights_available, required=True)
+    parser.add_argument("--opset", help="Opset version", type=int, default=None)
 
     args = parser.parse_args()
 
@@ -46,7 +47,7 @@ def export_model(name_weights, shape_image=(3, 518, 518)):
     path_onnx = Path(config._PATH_DIR_ONNX) / f"{name_weights}.onnx"
     path_onnx.parent.mkdir(parents=True, exist_ok=True)
     # TODO: Check opset version
-    torch.onnx.export(model, input_dummy, path_onnx, input_names=["input"], output_names=["output"])
+    torch.onnx.export(model, input_dummy, path_onnx, opset_version=17, input_names=["input"], output_names=["output"])
 
     print(f"Model exported to {path_onnx}")
 
