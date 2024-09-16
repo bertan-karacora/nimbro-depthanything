@@ -137,5 +137,8 @@ engines/
 # Model weights
 weights/
 
+# Exported programs
+exported_programs/
+
 # Data
 data/
