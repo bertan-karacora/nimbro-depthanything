@@ -5,6 +5,7 @@ import torch
 
 import nimbro_depthanything.config as config
 from nimbro_depthanything.models import DepthAnythingV2
+import nimbro_depthanything.transforms as transforms
 
 
 def list_weights_available():
@@ -20,18 +21,19 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Export model.")
     parser.add_argument("--weights", dest="name_weights", help="Name of the saved weights", choices=names_weights_available, required=True)
+    parser.add_argument("--width", dest="width_original", help="Width of original image", type=int, default=518)
+    parser.add_argument("--height", dest="height_original", help="Height of original image", type=int, default=518)
+    parser.add_argument("--min_size_resized", help="Size of the smaller dimension after resizing", type=int, default=518)
+    parser.add_argument("--base", help="Base for input dimensions to be resized to a multiple of", type=int, default=14)
     parser.add_argument("--opset", dest="version_opset", help="Opset version", type=int)
-    parser.add_argument("--width", dest="width_input", help="Width of input image after resizing if it is the shorter side", type=int, default=518)
-    parser.add_argument("--height", dest="height_input", help="Height of input image after resizing if it is the shorter side", type=int, default=518)
-
     args = parser.parse_args()
 
-    shape_input = (1, 3, args.height_input, args.width_input)
+    shape_original = (1, 3, args.height_original, args.width_original)
 
-    return shape_input, args.name_weights, args.version_opset
+    return args.name_weights, shape_original, args.min_size_resized, args.base, args.version_opset
 
 
-def export_model(name_weights, shape_input=(1, 3, 518, 518), version_opset=None):
+def export_model(name_weights, shape_original=(1, 3, 518, 518), min_size_resized=518, base=14, version_opset=None):
     print(f"Exporting model ...")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -44,6 +46,7 @@ def export_model(name_weights, shape_input=(1, 3, 518, 518), version_opset=None)
     model = model.to(device)
     model = model.eval()
 
+    shape_input = transforms.resize_shape_to_multiple_of_base(shape_original, min_size_resized, base)
     input_dummy = torch.rand(shape_input, device=device, dtype=torch.float32)
 
     path_onnx = Path(config._PATH_DIR_ONNX) / f"{name_weights}.onnx"
@@ -56,11 +59,13 @@ def export_model(name_weights, shape_input=(1, 3, 518, 518), version_opset=None)
         export_params=True,
         input_names=["input"],
         output_names=["output"],
-        # dynamic_axes={
-        #     "input": {2: "height", 3: "width"},
-        #     "output": {1: "height", 2: "width"},
-        # },
     )
+    # TODO: Add dynamic axes
+    # dynamic_axes={
+    #     "input": {2: "height", 3: "width"},
+    #     "output": {1: "height", 2: "width"},
+    # },
+    # Alternative (currently not working):
     # torch.onnx.dynamo_export(
     #     model,
     #     input_dummy,
@@ -71,8 +76,8 @@ def export_model(name_weights, shape_input=(1, 3, 518, 518), version_opset=None)
 
 
 def main():
-    shape_input, name_weights, version_opset = parse_args()
-    export_model(name_weights, shape_input, version_opset)
+    name_weights, shape_original, min_size_resized, base, version_opset = parse_args()
+    export_model(name_weights, shape_original, min_size_resized, base, version_opset)
 
 
 if __name__ == "__main__":

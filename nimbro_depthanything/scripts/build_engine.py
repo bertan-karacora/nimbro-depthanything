@@ -21,17 +21,12 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Build tensorrt engine.")
     parser.add_argument("--model", dest="name_model", help="Name of the saved ONNX model", choices=names_models_onnx_available, required=True)
-    parser.add_argument("--width", dest="width_input", help="Width of input image", type=int, default=518)
-    parser.add_argument("--height", dest="height_input", help="Height of input image", type=int, default=518)
-
     args = parser.parse_args()
 
-    shape_input = (1, 3, args.height_input, args.width_input)
-
-    return args.name_model, shape_input
+    return args.name_model
 
 
-def build_engine(name_model, shape_input=(1, 3, 518, 518)):
+def build_engine(name_model):
     print(f"Building tensorrt engine ...")
 
     path_onnx = Path(config._PATH_DIR_ONNX) / f"{name_model}.onnx"
@@ -53,7 +48,9 @@ def build_engine(name_model, shape_input=(1, 3, 518, 518)):
     if builder.platform_has_fast_fp16:
         config_builder.set_flag(trt.BuilderFlag.FP16)
 
+    # TODO: Make dynamic axes work
     # profile_optimization = builder.create_optimization_profile()
+    # shape_input = transforms.resize_shape_to_multiple_of_base(shape_original)
     # profile_optimization.set_shape("input", (1, 3, 518, 518), shape_input, (1, 3, 518 * 4, 518 * 4))
     # config_builder.add_optimization_profile(profile_optimization)
 
@@ -68,8 +65,8 @@ def build_engine(name_model, shape_input=(1, 3, 518, 518)):
 
 
 def main():
-    name_model, shape_input = parse_args()
-    build_engine(name_model, shape_input)
+    name_model = parse_args()
+    build_engine(name_model)
 
 
 if __name__ == "__main__":
