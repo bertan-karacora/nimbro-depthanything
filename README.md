@@ -8,6 +8,7 @@
 
 ```bash
 git clone https://git.ais.uni-bonn.de/athome/nimbro_depthanything.git
+cd nimbro_depthanything
 git submodule update --init --remote --recursive
 ```
 
