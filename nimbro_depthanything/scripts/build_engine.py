@@ -21,12 +21,14 @@ def parse_args():
 
     parser = argparse.ArgumentParser(description="Build tensorrt engine.")
     parser.add_argument("--model", dest="name_model", help="Name of the saved ONNX model", choices=names_models_onnx_available, required=True)
+    parser.add_argument("--use_half_precision", help="Use half precision", action="store_true")
+    parser.add_argument("--limit_memory_workspace", help="Limit memory of workspace", type=int, default=None)
     args = parser.parse_args()
 
-    return args.name_model
+    return args.name_model, args.use_half_precision, args.limit_memory_workspace
 
 
-def build_engine(name_model):
+def build_engine(name_model, use_half_precision=False, limit_memory_workspace=None):
     print(f"Building tensorrt engine ...")
 
     path_onnx = Path(config._PATH_DIR_ONNX) / f"{name_model}.onnx"
@@ -45,8 +47,13 @@ def build_engine(name_model):
         return
 
     config_builder = builder.create_builder_config()
-    if builder.platform_has_fast_fp16:
-        config_builder.set_flag(trt.BuilderFlag.FP16)
+    if limit_memory_workspace:
+        config_builder.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, limit_memory_workspace)
+    if use_half_precision:
+        if builder.platform_has_fast_fp16:
+            config_builder.set_flag(trt.BuilderFlag.FP16)
+        else:
+            print("Requested half precision but setting is unavailable on current platform")
 
     # TODO: Make dynamic axes work
     # profile_optimization = builder.create_optimization_profile()
@@ -65,8 +72,8 @@ def build_engine(name_model):
 
 
 def main():
-    name_model = parse_args()
-    build_engine(name_model)
+    name_model, use_half_precision, limit_memory_workspace = parse_args()
+    build_engine(name_model, use_half_precision, limit_memory_workspace)
 
 
 if __name__ == "__main__":
