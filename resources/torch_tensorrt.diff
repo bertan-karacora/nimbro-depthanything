@@ -1,5 +1,5 @@
 diff --git a/WORKSPACE b/WORKSPACE
-index 41b6abb2f..9ee7c1d69 100644
+index 41b6abb2f..a27a1fed8 100644
 --- a/WORKSPACE
 +++ b/WORKSPACE
 @@ -1,5 +1,10 @@
@@ -13,7 +13,7 @@ index 41b6abb2f..9ee7c1d69 100644
  load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
  
  http_archive(
-@@ -36,46 +41,20 @@ http_archive(
+@@ -36,46 +41,14 @@ http_archive(
  # External dependency for torch_tensorrt if you already have precompiled binaries.
  local_repository(
      name = "torch_tensorrt",
@@ -37,9 +37,8 @@ index 41b6abb2f..9ee7c1d69 100644
 -    build_file = "@//third_party/libtorch:BUILD",
 -    strip_prefix = "libtorch",
 -    urls = ["https://download.pytorch.org/libtorch/test/cu121/libtorch-cxx11-abi-shared-with-deps-2.3.1%2Bcu121.zip"],
-+    path = "/usr/local/cuda-12.4/",
- )
- 
+-)
+-
 -http_archive(
 -    name = "libtorch_pre_cxx11_abi",
 -    build_file = "@//third_party/libtorch:BUILD",
@@ -59,14 +58,11 @@ index 41b6abb2f..9ee7c1d69 100644
 -    urls = [
 -        "https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/10.0.1/tars/TensorRT-10.0.1.6.Linux.x86_64-gnu.cuda-12.4.tar.gz",
 -    ],
-+new_local_repository(
-+    name = "cublas",
-+    build_file = "@//third_party/cublas:BUILD",
-+    path = "/usr",
++    path = "/usr/local/cuda-12.4/",
  )
  
  ####################################################################################
-@@ -89,35 +68,32 @@ http_archive(
+@@ -89,23 +62,24 @@ http_archive(
  # x86_64 python distribution. If using NVIDIA's version just point to the root of the package
  # for both versions here and do not use --config=pre-cxx11-abi
  
@@ -75,29 +71,31 @@ index 41b6abb2f..9ee7c1d69 100644
 -#    path = "/usr/local/lib/python3.6/dist-packages/torch",
 -#    build_file = "third_party/libtorch/BUILD"
 -#)
-+new_local_repository(
-+   name = "libtorch",
-+   path = "/opt/venv/lib/python3.10/site-packages/torch",
-+   build_file = "third_party/libtorch/BUILD"
-+)
- 
+-
 -#new_local_repository(
 -#    name = "libtorch_pre_cxx11_abi",
 -#    path = "/usr/local/lib/python3.6/dist-packages/torch",
 -#    build_file = "third_party/libtorch/BUILD"
 -#)
+-
+-#new_local_repository(
+-#   name = "tensorrt",
+-#   path = "/usr/",
+-#   build_file = "@//third_party/tensorrt/local:BUILD"
+-#)
++new_local_repository(
++   name = "libtorch",
++   path = "/opt/venv/lib/python3.10/site-packages/torch",
++   build_file = "third_party/libtorch/BUILD"
++)
++
 +# NOTE: Unused on aarch64-jetson with NVIDIA provided PyTorch distribu†ion
 +new_local_repository(
 +   name = "libtorch_pre_cxx11_abi",
 +   path = "/opt/venv/lib/python3.10/site-packages/torch",
 +   build_file = "third_party/libtorch/BUILD"
 +)
- 
--#new_local_repository(
--#   name = "tensorrt",
--#   path = "/usr/",
--#   build_file = "@//third_party/tensorrt/local:BUILD"
--#)
++
 +new_local_repository(
 +  name = "tensorrt",
 +  path = "/usr/",
@@ -106,24 +104,6 @@ index 41b6abb2f..9ee7c1d69 100644
  
  #########################################################################
  # Development Dependencies (optional - comment out on aarch64)
- #########################################################################
- 
--load("@rules_python//python:pip.bzl", "pip_parse")
--
--pip_parse(
--    name = "devtools_deps",
--    requirements = "//:requirements-dev.txt",
--)
--
--load("@devtools_deps//:requirements.bzl", "install_deps")
-+# load("@rules_python//python:pip.bzl", "pip_install")
- 
--install_deps()
-+# pip_install(
-+#     name = "devtools_deps",
-+#     requirements = "//:requirements-dev.txt",
-+# )
-\ No newline at end of file
 diff --git a/setup.py b/setup.py
 index 7e3084748..90584e862 100644
 --- a/setup.py
@@ -168,10 +148,10 @@ index aa6486d07..84f7a48a1 100644
      name = "ci_rhel_x86_64_linux",
      constraint_values = [
 diff --git a/toolchains/jetpack/BUILD b/toolchains/jetpack/BUILD
-index fa5ddd2c8..6b4dac6c4 100644
+index fa5ddd2c8..d62542cb1 100644
 --- a/toolchains/jetpack/BUILD
 +++ b/toolchains/jetpack/BUILD
-@@ -11,3 +11,9 @@ constraint_value(
+@@ -11,3 +11,8 @@ constraint_value(
      name = "4.6",
      constraint_setting = ":jetpack",
  )
@@ -180,4 +160,3 @@ index fa5ddd2c8..6b4dac6c4 100644
 +    name = "6.0",
 +    constraint_setting = ":jetpack",
 +)
-+

@@ -245,12 +245,12 @@ RUN BAZELISK_RELEASE=$(wget -qO- https://api.github.com/repos/bazelbuild/bazelis
     chmod +x /usr/local/bin/bazel
 
 RUN git clone --branch=v2.3.0 https://github.com/pytorch/TensorRT /opt/torch_tensorrt
+WORKDIR /opt/torch_tensorrt
 COPY resources/WORKSPACE.jp60 /opt/torch_tensorrt/toolchains/jp_workspaces/WORKSPACE.jp60
-COPY resources/WORKSPACE.jp60 /opt/torch_tensorrt/WORKSPACE
-COPY resources/torch_tensorrt.diff /opt/torch_tensorrt 
-RUN cd /opt/torch_tensorrt && \
-    python setup.py bdist_wheel --jetpack-version 6.0 --use-cxx11-abi && \
-    cp dist/torch_tensorrt*.whl /opt/
+COPY resources/torch_tensorrt.diff /opt/torch_tensorrt/
+RUN git apply torch_tensorrt.diff
+RUN python setup.py bdist_wheel --jetpack-version 6.0 --use-cxx11-abi
+RUN cp dist/torch_tensorrt*.whl /opt/
 
 
 
