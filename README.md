@@ -23,5 +23,5 @@ Docker/run.sh
 
 ## TODO
 
-- In build engine script: Limit memory so other things can also run? config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 20) # 1 MiB
-- Engine: Add Dimension Constraint using IAssertionLayer?
+- Make model and engine working with dynamic shapes
+- Make ros 2 jazzy container work
