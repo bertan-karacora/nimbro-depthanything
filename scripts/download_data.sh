@@ -36,7 +36,7 @@ parse_args() {
 
 download_data() {
     if [ ! -d "$path_dir_data" ]; then
-        mkdir "$path_dir_data"
+        mkdir -p "$path_dir_data"
     fi
 
     for url in "${urls[@]}"; do

@@ -36,7 +36,7 @@ parse_args() {
 
 download_weights_pretrained() {
     if [ ! -d "$path_dir_weights" ]; then
-        mkdir "$path_dir_weights"
+        mkdir -p "$path_dir_weights"
     fi
 
     for url in "${urls[@]}"; do
