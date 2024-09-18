@@ -25,3 +25,5 @@ Docker/run.sh
 
 - Make model and engine working with dynamic shapes
 - Make ros 2 jazzy container work
+- Write ros node
+- Collect data from relevant sensors
