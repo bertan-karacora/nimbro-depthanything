@@ -82,13 +82,6 @@ RUN apt-get update -qq && \
     apt-get clean -qq && \
     rm -rf /var/lib/apt/lists/*
 
-# Install torch2trt plugins
-RUN git clone https://github.com/NVIDIA-AI-IOT/torch2trt /opt/torch2trt
-RUN sed 's|Catch2_FOUND|False|g' -i /opt/torch2trt/CMakeLists.txt && \
-    cmake -B /opt/torch2trt/build /opt/torch2trt && \
-    cmake --build /opt/torch2trt/build --target install && \
-    ldconfig
-
 # Install dependencies
 RUN apt-get update -qq && \
     apt-get install -y -qq --no-install-recommends \
@@ -134,22 +127,13 @@ RUN apt-get update -qq && \
 
 # Install tensorrt
 # Assume Jetson device
-# Full installer not available for arm64
-# TODO: Where did I read that? Check if that doesn't work using some installer instead
-RUN mkdir -p /tmp/tensorrt && \
-    wget --quiet https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/10.0.1/tars/TensorRT-10.0.1.6.l4t.aarch64-gnu.cuda-12.4.tar.gz --output-document /tmp/TensorRT.tar
+# Full installer only available for amd64
+RUN wget --quiet https://developer.nvidia.com/downloads/compute/machine-learning/tensorrt/10.0.1/tars/TensorRT-10.0.1.6.l4t.aarch64-gnu.cuda-12.4.tar.gz --output-document /tmp/TensorRT.tar
 RUN tar -xvf /tmp/TensorRT.tar --directory /usr/src && \
     mv /usr/src/TensorRT-* /usr/src/tensorrt && \
     cp -r /usr/src/tensorrt/lib/* "/usr/lib/$(uname -m)-linux-gnu/" && \
     cp -r /usr/src/tensorrt/include/* "/usr/include/$(uname -m)-linux-gnu/" && \
-    rm -rf /tmp/tensorrt
-
-# Install torch2trt plugins
-RUN git clone https://github.com/NVIDIA-AI-IOT/torch2trt /opt/torch2trt
-RUN sed 's|Catch2_FOUND|False|g' -i /opt/torch2trt/CMakeLists.txt && \
-    cmake -B /opt/torch2trt/build /opt/torch2trt && \
-    cmake --build /opt/torch2trt/build --target install && \
-    ldconfig
+    rm -rf /tmp/*
 
 # Install dependencies
 RUN apt-get update -qq && \
@@ -214,21 +198,18 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --requirement /tmp/requirements.txt && \
     rm -rf /tmp/*
 
-RUN pip install --no-cache-dir \
-    /opt/torch2trt
-
 
 
 # ========================================
-FROM python-base AS python-arm64
+FROM python-base AS python-arm64-torch_tensorrt-build
 
 # Install dependencies
 COPY requirements.txt /tmp/requirements.txt
-RUN grep -ivE "torch|torchvision|torchaudio|tensorrt" /tmp/requirements.txt > /tmp/requirements_arm.txt
+RUN grep -ivE "accelerate==|tensorrt==|torch==|torch-tensorrt==|torchaudio==|torchprofile==|torchvision==" /tmp/requirements.txt > /tmp/requirements_arm.txt
 RUN pip install --no-cache-dir --requirement /tmp/requirements_arm.txt && \
     rm -rf /tmp/*
 
-# Install dependencies
+# Install dependencies for pytorch wheel
 RUN apt-get update -qq && \
     apt-get install -y -qq --no-install-recommends \
     libopenblas-dev \
@@ -248,13 +229,73 @@ RUN wget --quiet https://nvidia.box.com/shared/static/zvultzsmd4iuheykxy17s4l2n9
 RUN pip install --no-cache-dir \
     /tmp/torch-2.3.0-cp310-cp310-linux_aarch64.whl \
     /tmp/torchvision-0.18.0a0+6043bc2-cp310-cp310-linux_aarch64.whl \
-    /tmp/torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl
+    /tmp/torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl \
+    && \
+    rm -rf /tmp/*
 
-RUN VERSION_PYTHON=$(python3 -c 'import sys; print(f"{sys.version_info.major}{sys.version_info.minor}")') && \
-    pip install --no-cache-dir /usr/src/tensorrt/python/tensorrt-*-cp"$VERSION_PYTHON"-*.whl
+# Install tensorrt
+RUN pip install --no-cache-dir \
+    /usr/src/tensorrt/python/tensorrt-*-cp310-*.whl
+
+# Install bazel
+RUN BAZELISK_RELEASE=$(wget -qO- https://api.github.com/repos/bazelbuild/bazelisk/releases/latest | grep -Po '"tag_name": "\K.*?(?=")') && \
+    BAZELISK_URL="https://github.com/bazelbuild/bazelisk/releases/download/$BAZELISK_RELEASE/bazelisk-linux-arm64" && \
+    echo "BAZELISK_RELEASE=$BAZELISK_RELEASE" && echo "BAZELISK_URL=$BAZELISK_URL" && \
+    wget --quiet --show-progress --progress=bar:force:noscroll --no-check-certificate $BAZELISK_URL -O /usr/local/bin/bazel && \
+    chmod +x /usr/local/bin/bazel
+
+RUN git clone --branch=v2.3.0 https://github.com/pytorch/TensorRT /opt/torch_tensorrt
+COPY resources/WORKSPACE.jp60 /opt/torch_tensorrt/toolchains/jp_workspaces/WORKSPACE.jp60
+COPY resources/WORKSPACE.jp60 /opt/torch_tensorrt/WORKSPACE
+COPY resources/torch_tensorrt.diff /opt/torch_tensorrt 
+RUN cd /opt/torch_tensorrt && \
+    python setup.py bdist_wheel --jetpack-version 6.0 --use-cxx11-abi && \
+    cp dist/torch_tensorrt*.whl /opt/
+
+
+
+# ========================================
+FROM python-base AS python-arm64
+
+# Install dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN grep -ivE "accelerate==|tensorrt==|torch==|torch-tensorrt==|torchaudio==|torchprofile==|torchvision==" /tmp/requirements.txt > /tmp/requirements_arm.txt
+RUN pip install --no-cache-dir --requirement /tmp/requirements_arm.txt && \
+    rm -rf /tmp/*
+
+# Install dependencies for pytorch wheel
+RUN apt-get update -qq && \
+    apt-get install -y -qq --no-install-recommends \
+    libopenblas-dev \
+    libopenmpi-dev \
+    libomp-dev \
+    && \
+    apt-get autoremove -y -qq && \
+    apt-get clean -qq && \
+    rm -rf /var/lib/apt/lists/*
+
+# Assume Jetson device
+# Check updates here: https://forums.developer.nvidia.com/t/pytorch-for-jetson/72048
+RUN wget --quiet https://nvidia.box.com/shared/static/zvultzsmd4iuheykxy17s4l2n91ylpl8.whl --output-document /tmp/torch-2.3.0-cp310-cp310-linux_aarch64.whl && \
+    wget --quiet https://nvidia.box.com/shared/static/u0ziu01c0kyji4zz3gxam79181nebylf.whl --output-document /tmp/torchvision-0.18.0a0+6043bc2-cp310-cp310-linux_aarch64.whl && \
+    wget --quiet https://nvidia.box.com/shared/static/9si945yrzesspmg9up4ys380lqxjylc3.whl --output-document /tmp/torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl
 
 RUN pip install --no-cache-dir \
-    /opt/torch2trt
+    /tmp/torch-2.3.0-cp310-cp310-linux_aarch64.whl \
+    /tmp/torchvision-0.18.0a0+6043bc2-cp310-cp310-linux_aarch64.whl \
+    /tmp/torchaudio-2.3.0+952ea74-cp310-cp310-linux_aarch64.whl \
+    && \
+    rm -rf /tmp/*
+
+# Install tensorrt
+RUN pip install --no-cache-dir \
+    /usr/src/tensorrt/python/tensorrt-*-cp310-*.whl
+
+# Install torch-tensorrt
+COPY --from=python-arm64-torch_tensorrt-build /opt/torch_tensorrt*.whl /opt/
+RUN pip install --no-cache-dir \
+    /opt/torch_tensorrt*.whl \
+    nvidia-modelopt[all]~=0.17.0 --extra-index-url https://pypi.nvidia.com
 
 
 
