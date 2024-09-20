@@ -23,6 +23,7 @@ Docker/run.sh
 
 ## TODO
 
+- Compiler is mounted if runtime=nvidia is used. Get /usr/lib/aarch64-linux-gnu/nvidia/libnvdla_compiler.so at build time somehow.
 - Make model and engine working with dynamic shapes
 - Make ros 2 jazzy container work
 - Write ros node
