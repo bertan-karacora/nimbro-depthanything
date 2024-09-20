@@ -135,6 +135,15 @@ RUN tar -xvf /tmp/TensorRT.tar --directory /usr/src && \
     cp -r /usr/src/tensorrt/include/* "/usr/include/$(uname -m)-linux-gnu/" && \
     rm -rf /tmp/*
 
+# Install torch2trt plugins
+RUN git clone https://github.com/NVIDIA-AI-IOT/torch2trt /opt/torch2trt
+RUN CUDA_ARCHITECTURES=87 && \
+    sed 's|^set(CUDA_ARCHITECTURES.*|#|g' -i /opt/torch2trt/CMakeLists.txt && \
+    sed 's|Catch2_FOUND|False|g' -i /opt/torch2trt/CMakeLists.txt && \
+    cmake -B /opt/torch2trt/build /opt/torch2trt && \
+    cmake --build /opt/torch2trt/build --target install && \
+    ldconfig
+
 # Install dependencies
 RUN apt-get update -qq && \
     apt-get install -y -qq --no-install-recommends \
@@ -296,6 +305,10 @@ COPY --from=python-arm64-torch_tensorrt-build /opt/torch_tensorrt*.whl /opt/
 RUN pip install --no-cache-dir \
     /opt/torch_tensorrt*.whl \
     nvidia-modelopt[all]~=0.17.0 --extra-index-url https://pypi.nvidia.com
+
+# TODO: Compiler is mounted if runtime=nvidia is used. Get /usr/lib/aarch64-linux-gnu/nvidia/libnvdla_compiler.so at build time somehow.
+# RUN pip install --no-cache-dir \
+#     /opt/torch2trt
 
 
 
