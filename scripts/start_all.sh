@@ -19,7 +19,7 @@ main() {
     # python "$path_repo/nimbro_depthanything/scripts/export_model.py" --weights "depth_anything_v2_metric_hypersim_vits" --height 518 --width 686
     # python "$path_repo/nimbro_depthanything/scripts/build_engine.py" --model "depth_anything_v2_metric_hypersim_vits"
 
-    jupyter notebook --no-browser --port 8999 --allow-root
+    tmux new-session -s test jupyter notebook --no-browser --port 8999 --allow-root
 }
 
 main "$@"
